@@ -54,30 +54,82 @@ class StoryGenerator:
             self.train()
         
         sentences = []
-        
+        used = set()
+
+        # Helper to add a sentence if it's not a duplicate
+        def add_sentence(s):
+            if not s:
+                return False
+            key = s.strip()
+            # Avoid exact duplicates
+            if key in used:
+                return False
+            used.add(key)
+            sentences.append(s)
+            return True
+
         # Try to generate sentences
-        for _ in range(num_sentences):
+        for i in range(num_sentences * 2):  # allow some extra attempts
+            if len(sentences) >= num_sentences:
+                break
             try:
                 if seed_words and len(sentences) == 0:
-                    # Try to start with seed words
-                    sentence = self.model.make_sentence_with_start(seed_words, strict=False)
+                    # Try to start with seed words but don't force exact repetition
+                    sentence = None
+                    try:
+                        sentence = self.model.make_sentence_with_start(seed_words, strict=False)
+                    except Exception:
+                        sentence = None
+                    # If markovify returns the exact seed text repeatedly, try a normal sentence
+                    if sentence and seed_words.strip().lower() in sentence.strip().lower():
+                        # Slightly vary the seed start by asking for a different follow-up
+                        alt = self.model.make_sentence(tries=50)
+                        if alt:
+                            sentence = alt
                 else:
                     sentence = self.model.make_sentence(tries=100)
-                
-                if sentence:
-                    sentences.append(sentence)
+
+                # If we couldn't get one, continue trying
+                if not sentence:
+                    continue
+
+                # If sentence equals an obvious corpus line (exact match), try to slightly vary it
+                if sentence.strip().endswith('.') and sentence.strip() in THRILLER_CORPUS:
+                    # attempt small rephrasing by swapping a word or appending a short clause
+                    words = sentence.split()
+                    if len(words) > 3:
+                        # swap two random words (not ideal but adds variation)
+                        a, b = random.sample(range(len(words)), 2)
+                        words[a], words[b] = words[b], words[a]
+                        sentence = ' '.join(words)
+
+                added = add_sentence(sentence)
+                if not added:
+                    # If duplicate, try again in the next loop
+                    continue
             except (KeyError, markovify.text.ParamError):
                 # If seed words don't work, generate without them
                 sentence = self.model.make_sentence(tries=100)
-                if sentence:
-                    sentences.append(sentence)
-        
-        # If we couldn't generate enough sentences, pad with some extras
-        while len(sentences) < num_sentences:
-            sentence = self.model.make_sentence(tries=100)
-            if sentence:
-                sentences.append(sentence)
-        
+                add_sentence(sentence)
+
+        # If we couldn't generate enough unique sentences, pad with random corpus lines
+        corpus_lines = [line.strip() for line in THRILLER_CORPUS.splitlines() if line.strip()]
+        random.shuffle(corpus_lines)
+        for line in corpus_lines:
+            if len(sentences) >= num_sentences:
+                break
+            if line not in used:
+                # don't add the exact same seed phrase if present
+                add_sentence(line)
+
+        # Final safety: if still short, repeat best-effort generated sentences (keep uniqueness where possible)
+        if len(sentences) < num_sentences:
+            attempts = 0
+            while len(sentences) < num_sentences and attempts < 20:
+                s = self.model.make_sentence(tries=100)
+                add_sentence(s)
+                attempts += 1
+
         return ' '.join(sentences[:num_sentences])
     
     def generate_twist(self):
