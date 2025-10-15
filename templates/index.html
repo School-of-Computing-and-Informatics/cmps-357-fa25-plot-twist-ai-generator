@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlotTwist - AI Thriller Story Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🎭 PlotTwist</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/stories">My Stories</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="hero">
+            <h2>AI-Assisted Thriller Story Generator</h2>
+            <p>Create spine-chilling thriller stories with the power of AI and unexpected plot twists!</p>
+        </section>
+
+        <section class="generator-form">
+            <h3>Generate Your Story</h3>
+            <form id="storyForm">
+                <div class="form-group">
+                    <label for="seedWords">Starting Words (optional):</label>
+                    <input type="text" id="seedWords" name="seedWords" placeholder="e.g., The detective">
+                </div>
+                
+                <div class="form-group">
+                    <label for="numSentences">Number of Sentences:</label>
+                    <input type="number" id="numSentences" name="numSentences" value="10" min="3" max="30">
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="includeTwist" name="includeTwist" checked>
+                        Include Plot Twist
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="generateBtn">
+                    Generate Story
+                </button>
+            </form>
+        </section>
+
+        <section id="storyOutput" class="story-output" style="display: none;">
+            <h3>Your Generated Story</h3>
+            <div class="story-box">
+                <p id="storyText"></p>
+            </div>
+            <div class="story-actions">
+                <button class="btn btn-secondary" id="saveBtn">Save Story</button>
+                <button class="btn btn-outline" id="regenerateBtn">Generate Another</button>
+            </div>
+        </section>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Crafting your thriller...</p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 PlotTwist. Powered by Markov Chains & Flask.</p>
+        </div>
+    </footer>
+
+    <script>
+        const form = document.getElementById('storyForm');
+        const storyOutput = document.getElementById('storyOutput');
+        const storyText = document.getElementById('storyText');
+        const loading = document.getElementById('loading');
+        const generateBtn = document.getElementById('generateBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const regenerateBtn = document.getElementById('regenerateBtn');
+        
+        let currentStoryId = null;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const seedWords = document.getElementById('seedWords').value;
+            const numSentences = document.getElementById('numSentences').value;
+            const includeTwist = document.getElementById('includeTwist').checked;
+            
+            loading.style.display = 'block';
+            storyOutput.style.display = 'none';
+            generateBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        seed_words: seedWords,
+                        num_sentences: parseInt(numSentences),
+                        include_twist: includeTwist
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentStoryId = data.story_id;
+                    storyText.textContent = data.text;
+                    storyOutput.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error generating story:', error);
+                alert('Failed to generate story. Please try again.');
+            } finally {
+                loading.style.display = 'none';
+                generateBtn.disabled = false;
+            }
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            if (currentStoryId) {
+                window.location.href = `/story/${currentStoryId}`;
+            }
+        });
+        
+        regenerateBtn.addEventListener('click', () => {
+            form.dispatchEvent(new Event('submit'));
+        });
+    </script>
+</body>
+</html>

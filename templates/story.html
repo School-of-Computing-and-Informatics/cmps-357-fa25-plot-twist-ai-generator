@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ story.title }} - PlotTwist</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🎭 PlotTwist</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/stories">My Stories</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <article class="story-detail">
+            <h2>{{ story.title }}</h2>
+            <div class="story-meta">
+                <span class="date">Created: {{ story.created_at[:10] }}</span>
+            </div>
+            <div class="story-content">
+                <p>{{ story.text }}</p>
+            </div>
+            <div class="story-actions">
+                <a href="/story/{{ story.id }}/edit" class="btn btn-secondary">Edit Story</a>
+                <a href="/stories" class="btn btn-outline">Back to Stories</a>
+                <button class="btn btn-danger" onclick="deleteStory({{ story.id }})">Delete</button>
+            </div>
+        </article>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 PlotTwist. Powered by Markov Chains & Flask.</p>
+        </div>
+    </footer>
+
+    <script>
+        async function deleteStory(storyId) {
+            if (confirm('Are you sure you want to delete this story?')) {
+                try {
+                    const response = await fetch(`/story/${storyId}/delete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        window.location.href = '/stories';
+                    } else {
+                        alert('Failed to delete story.');
+                    }
+                } catch (error) {
+                    console.error('Error deleting story:', error);
+                    alert('Failed to delete story.');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
